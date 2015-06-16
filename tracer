@@ -4,7 +4,17 @@ Chrome(function (chrome) {
         send('HeapProfiler.enable', {}, function(p) { console.log("hpe", p)  });
         send('Tracing.getCategories', {}, function(p) { console.log("tgc", p) });
 
-        on('Tracing.dataCollected', console.log);
+        on('Tracing.dataCollected', function(p) {
+//{ value: 
+//   [ { pid: 34688, tid: 35331, ts: 415684337064, ph: 'X', cat: 'toplevel', name: 'MessageLoop::RunTask',
+//       args: [Object], dur: 120, tdur: 13, tts: 1304880 },
+
+            var ar = p['value']
+            for ( k in ar ) {
+                console.log(ar[k])
+            }
+        
+        });
         on('Tracing.tracingComplete', function() {
             console.log("Complete...")
             close()
