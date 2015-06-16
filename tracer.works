@@ -1,0 +1,26 @@
+var Chrome = require('chrome-remote-interface');
+Chrome(function (chrome) {
+    with (chrome) {
+        send('HeapProfiler.enable', {}, function(p) { console.log("hpe", p)  });
+        send('Tracing.getCategories', {}, function(p) { console.log("tgc", p) });
+
+        on('Tracing.dataCollected', console.log);
+        on('Tracing.tracingComplete', function() {
+            console.log("Complete...")
+            close()
+        })
+
+        send('Tracing.start', {}, console.log);
+        setTimeout(function(params) {
+            console.log('GC')
+            send('HeapProfiler.collectGarbage', console.log);
+        }, 2500)
+        setTimeout(function(params) {
+            console.log("Tracing.end...")
+            send('Tracing.end', {}, console.log)
+        }, 5000)
+    }
+}).on('error', function () {
+    console.error('Cannot connect to Chrome');
+});
+
