@@ -3,13 +3,12 @@
 var first = true
 var timelines = []
 var timelines_acquired = false
+var counters = []
 var Chrome = require('chrome-remote-interface');
 Chrome(function (chrome) {
     with (chrome) {
-        send('Tracing.end', {}, console.log)
-        send('HeapProfiler.enable', {}, function(p, r) { console.log("hpe", p, r)  });
+        send('HeapProfiler.enable', {}, function(p, r) { console.error("hpe", p, r)  });
         send('Tracing.getCategories', {}, function(p, r) {
-            console.log(r)
             var cats = r.categories
             for ( c in cats ) {
                 var v = cats[c]
@@ -18,7 +17,6 @@ Chrome(function (chrome) {
                 }
             }
             timelines_acquired = true
-            console.log(timelines)
         });
 
         on('Tracing.dataCollected', function(p) {
@@ -40,14 +38,22 @@ Chrome(function (chrome) {
 
             var ar = p['value']
             for ( k in ar ) {
-                console.log(ar[k])
+                var e = ar[k]
+                if (e['name'] == 'UpdateCounters') {
+                    counters.push(e)
+                }
             }
-        
         });
 
         on('Tracing.tracingComplete', function() {
-            console.log("Complete...")
+            console.error("Complete...")
             close()
+
+for ( i in counters ) {
+    var c = counters[i]
+    console.log(c.ts, c.args.data)
+}
+console.error("counters.len=", counters.length)
         })
 
 // {"id":26,
@@ -62,19 +68,18 @@ Chrome(function (chrome) {
         on('ready', function () {
             if (first && timelines_acquired) {
                 first = false
-                 console.log('Tracing.start', {'categories': timelines.join(','), 'bufferUsageReportingInterval':500}, console.log)
-                 send('Tracing.start', {'categories': timelines.join(','), 'bufferUsageReportingInterval':500}, console.log)
-                // send('Tracing.start', {'bufferUsageReportingInterval':500}, console.log)
+                 console.error('Tracing.start', {'categories': timelines.join(','), 'bufferUsageReportingInterval':500})
+                 send('Tracing.start', {'categories': timelines.join(','), 'bufferUsageReportingInterval':500}, console.error)
             }
         })
 
         setTimeout(function(params) {
-            console.log('GC')
-            send('HeapProfiler.collectGarbage', console.log);
+            console.error('GC')
+            send('HeapProfiler.collectGarbage', console.error);
         }, 2500)
         setTimeout(function(params) {
-            console.log("Tracing.end...")
-            send('Tracing.end', {}, console.log)
+            console.error("Tracing.end...")
+            send('Tracing.end', {}, console.error)
         }, 5000)
     }
 }).on('error', function () {
