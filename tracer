@@ -1,13 +1,42 @@
+#!/usr/local/bin/node
+
+var first = true
+var timelines = []
+var timelines_acquired = false
 var Chrome = require('chrome-remote-interface');
 Chrome(function (chrome) {
     with (chrome) {
-        send('HeapProfiler.enable', {}, function(p) { console.log("hpe", p)  });
-        send('Tracing.getCategories', {}, function(p) { console.log("tgc", p) });
+        send('Tracing.end', {}, console.log)
+        send('HeapProfiler.enable', {}, function(p, r) { console.log("hpe", p, r)  });
+        send('Tracing.getCategories', {}, function(p, r) {
+            console.log(r)
+            var cats = r.categories
+            for ( c in cats ) {
+                var v = cats[c]
+                if ( v == 'disabled-by-default-devtools.timeline' ) {  
+                    timelines.push(v)
+                }
+            }
+            timelines_acquired = true
+            console.log(timelines)
+        });
 
         on('Tracing.dataCollected', function(p) {
 //{ value: 
-//   [ { pid: 34688, tid: 35331, ts: 415684337064, ph: 'X', cat: 'toplevel', name: 'MessageLoop::RunTask',
-//       args: [Object], dur: 120, tdur: 13, tts: 1304880 },
+//   [ { pid: 3253,
+//  tid: 1299,
+//  ts: 7022249061,
+//  ph: 'I',
+//  cat: 'disabled-by-default-devtools.timeline',
+//  name: 'UpdateCounters',
+//  args: 
+//   { data: 
+//      { documents: 20,
+//        nodes: 1041,
+//        jsEventListeners: 28,
+//        jsHeapSizeUsed: 36104280 } },
+//  tts: 2004577,
+//  s: 'g' }
 
             var ar = p['value']
             for ( k in ar ) {
@@ -15,12 +44,30 @@ Chrome(function (chrome) {
             }
         
         });
+
         on('Tracing.tracingComplete', function() {
             console.log("Complete...")
             close()
         })
 
-        send('Tracing.start', {}, console.log);
+// {"id":26,
+//        "method":"Tracing.start",
+//        "params":{
+//            "categories":"-*,disabled-by-default-devtools.timeline,disabled-by-default-devtools.timeline.frame,blink.console,disabled-by-default-devtools.timeline.stack",
+//            "options":"",
+//            "bufferUsageReportingInterval":500
+//        }
+//    }
+
+        on('ready', function () {
+            if (first && timelines_acquired) {
+                first = false
+                 console.log('Tracing.start', {'categories': timelines.join(','), 'bufferUsageReportingInterval':500}, console.log)
+                 send('Tracing.start', {'categories': timelines.join(','), 'bufferUsageReportingInterval':500}, console.log)
+                // send('Tracing.start', {'bufferUsageReportingInterval':500}, console.log)
+            }
+        })
+
         setTimeout(function(params) {
             console.log('GC')
             send('HeapProfiler.collectGarbage', console.log);
